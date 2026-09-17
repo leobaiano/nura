@@ -39,22 +39,31 @@ export const profileService = {
     },
 
     async delete(id: number): Promise<void> {
-        await db.transaction("rw", [db.profiles, db.medications, db.stocks], async () => {
-            const medIds = await db.medications
-                .where("profileId")
-                .equals(id)
-                .primaryKeys();
+        await db.transaction(
+            "rw",
+            [db.profiles, db.medications, db.stocks, db.doseLogs],
+            async () => {
+                // 1. Busca as chaves primárias dos medicamentos do perfil
+                const medIds = await db.medications
+                    .where("profileId")
+                    .equals(id)
+                    .primaryKeys();
 
-            if (medIds.length > 0) {
-                await db.stocks.where("medicationId").anyOf(medIds).delete();
+                // 2. Se existirem medicamentos, remove estoques e histórico desses medicamentos
+                if (medIds.length > 0) {
+                    await db.stocks.where("medicationId").anyOf(medIds).delete();
+                    await db.doseLogs.where("medicationId").anyOf(medIds).delete();
+                }
+
+                // 3. Remove os históricos atribuídos diretamente ao profileId (caso existam)
+                await db.doseLogs.where("profileId").equals(id).delete();
+
+                // 4. Remove os medicamentos e o perfil
+                await db.medications.where("profileId").equals(id).delete();
+                await db.profiles.delete(id);
             }
-
-            await db.medications.where("profileId").equals(id).delete();
-
-            await db.profiles.delete(id);
-        });
+        );
     },
-
     async ensureDefaultProfile(): Promise<Profile> {
         const defaultProfile = await db.profiles
             .filter((p) => p.isDefault === true)
