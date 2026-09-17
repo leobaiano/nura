@@ -38,6 +38,16 @@ export const medicationService = {
   },
 
   async delete(id: number): Promise<void> {
-    await db.medications.delete(id);
+    await db.transaction(
+      "rw",
+      [db.medications, db.stocks, db.doseLogs],
+      async () => {
+        await db.stocks.where("medicationId").equals(id).delete();
+
+        await db.doseLogs.where("medicationId").equals(id).delete();
+
+        await db.medications.delete(id);
+      }
+    );
   },
 };
