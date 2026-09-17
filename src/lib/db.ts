@@ -1,11 +1,47 @@
 import Dexie, { type Table } from "dexie";
-import { Profile, Medication, Stock, DoseLog } from "@/types";
+import { Profile } from "@/features/profiles/types";
+
+// TODO: Tipos temporários enquanto não estruturamos os slices correspondentes
+export interface TempMedication {
+  id?: number;
+  profileId: number;
+  name: string;
+  dosage: number;
+  unit: string;
+  instructions?: string;
+  scheduleType: string;
+  intervalHours?: number;
+  specificTimes?: string[];
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TempStock {
+  id?: number;
+  medicationId: number;
+  currentQuantity: number;
+  minimumThreshold: number;
+  unit: string;
+  updatedAt: Date;
+}
+
+export interface TempDoseLog {
+  id?: number;
+  medicationId: number;
+  profileId: number;
+  scheduledTime: Date;
+  takenAt?: Date;
+  status: string;
+  notes?: string;
+  createdAt: Date;
+}
 
 export class NuraDatabase extends Dexie {
   profiles!: Table<Profile, number>;
-  medications!: Table<Medication, number>;
-  stocks!: Table<Stock, number>;
-  doseLogs!: Table<DoseLog, number>;
+  medications!: Table<TempMedication, number>;
+  stocks!: Table<TempStock, number>;
+  doseLogs!: Table<TempDoseLog, number>;
 
   constructor() {
     super("NuraDB");
@@ -19,5 +55,4 @@ export class NuraDatabase extends Dexie {
   }
 }
 
-// Instância única reutilizável da base de dados
 export const db = new NuraDatabase();
