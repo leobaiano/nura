@@ -1,17 +1,9 @@
-import { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { profileService } from "../services/profileService";
 import { Profile } from "../types";
 
 export function useProfiles() {
-  // Garante a existência do perfil padrão fora do fluxo do liveQuery
-  useEffect(() => {
-    profileService.ensureDefaultProfile().catch((err) => {
-      console.error("Erro ao garantir perfil padrão:", err);
-    });
-  }, []);
-
-  // A liveQuery agora faz puramente LEITURA (Read-Only)
+  // A liveQuery faz puramente a leitura (Read-Only) dos perfis
   const profiles = useLiveQuery(async () => {
     return await profileService.getAll();
   }, []);
