@@ -38,9 +38,27 @@ export const profileService = {
     });
   },
 
-  async delete(id: number): Promise<void> {
-    await db.profiles.delete(id);
-  },
+    async delete(id: number): Promise<void> {
+        await db.transaction("rw", [db.profiles, db.medications, db.stocks], async () => {
+            const profileMeds = await db.medications
+            .where("profileId")
+            .equals(id)
+            .toArray();
+
+            const medIds = profileMeds
+            .map((m) => m.id)
+            .filter((medId): medId is number => medId !== undefined);
+
+
+            if (medIds.length > 0) {
+                await db.stocks.where("medicationId").anyOf(medIds).delete();
+            }
+
+            await db.medications.where("profileId").equals(id).delete();
+
+            await db.profiles.delete(id);
+        });
+    },
 
   async ensureDefaultProfile(): Promise<Profile> {
     const defaultProfile = await db.profiles
