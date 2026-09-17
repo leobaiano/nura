@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "Nura - Gestão de Medicamentos",
+  "short_name": "Nura",
+  "description": "Aplicativo offline-first e privado para gestão de medicamentos e estoque.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#0D9488",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
