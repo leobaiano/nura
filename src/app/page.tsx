@@ -12,13 +12,13 @@ import { DoseItemCard } from "@/features/history/components/DoseItemCard";
 import { MedicationList } from "@/features/medications/components/MedicationList";
 import { AddMedicationSheet } from "@/features/medications/components/AddMedicationSheet";
 import { LayoutDashboard, Pill } from "lucide-react";
+import { DoseLog } from "@/features/history/types";
 
 export default function Home() {
   const { profiles, isLoading, addProfile } = useProfiles();
   const [activeProfileId, setActiveProfileId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"dashboard" | "medications">("dashboard");
 
-  // Sincroniza o perfil ativo inicial
   useEffect(() => {
     if (profiles.length > 0 && activeProfileId === null) {
       const defaultProfile = profiles.find((p) => p.isDefault) ?? profiles[0];
@@ -29,7 +29,7 @@ export default function Home() {
   }, [profiles, activeProfileId]);
 
   const {
-    medications,
+    scheduledDoses,
     todayLogs,
     lowStockMeds,
     stats,
@@ -54,7 +54,6 @@ export default function Home() {
     );
   }
 
-  // Se não houver perfis cadastrados, renderiza a tela de onboarding
   if (profiles.length === 0) {
     return <OnboardingScreen onComplete={addProfile} />;
   }
@@ -63,16 +62,14 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-nura-slate-50 flex flex-col font-sans">
-      {/* Shell / Header Fixo */}
       <Header
         profiles={profiles}
         selectedProfileId={activeProfileId}
         onSelectProfile={setActiveProfileId}
       />
 
-      {/* Conteúdo Principal */}
       <main className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        {/* Barra de Navegação por Abas */}
+        {/* Navegação por Abas */}
         <div className="flex bg-nura-slate-200/60 p-1 rounded-2xl max-w-md mx-auto">
           <button
             onClick={() => setActiveTab("dashboard")}
@@ -110,24 +107,20 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Alerta de Estoque Baixo */}
             <LowStockAlert medications={lowStockMeds} />
-
-            {/* Cartões de Resumo do Dia */}
             <DoseSummaryCards stats={stats} />
 
-            {/* Lista de Doses do Dia */}
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-lg font-semibold text-nura-slate-900">
-                  Medicamentos Cadastrados
+                  Agenda de Doses
                 </h2>
-                {medications.length > 0 && (
+                {allMedications.length > 0 && (
                   <AddMedicationSheet onAddMedication={addMedication} />
                 )}
               </div>
 
-              {medications.length === 0 ? (
+              {scheduledDoses.length === 0 ? (
                 <div className="bg-white p-8 rounded-2xl border border-nura-slate-200 text-center space-y-4 shadow-2xs">
                   <Pill className="w-10 h-10 text-nura-slate-400 mx-auto" />
                   <div className="space-y-1">
@@ -135,7 +128,7 @@ export default function Home() {
                       Nenhum medicamento cadastrado ainda
                     </p>
                     <p className="text-xs text-nura-slate-500 max-w-xs mx-auto leading-relaxed">
-                      Adicione seu primeiro remédio e defina o estoque inicial para começar a acompanhar as doses.
+                      Adicione seu primeiro remédio e configure os horários de tomada.
                     </p>
                   </div>
                   <div className="pt-2">
@@ -144,14 +137,35 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {medications.map((med) => {
-                    const log = todayLogs.find((l) => l.medicationId === med.id);
+                  {scheduledDoses.map((item, idx) => {
+                    // Se for sob demanda, não busca log para travar a tela
+                    const isAsNeeded =
+                      item.medication.scheduleType === "as_needed" ||
+                      !item.medication.scheduleType;
+
+                    // Para doses agendadas, busca o log bater EXATAMENTE com o scheduledTime
+                    const log = isAsNeeded
+                      ? undefined
+                      : todayLogs.find((l: DoseLog) => {
+                          if (l.medicationId !== item.medication.id) return false;
+                          const logTimeStr = `${String(
+                            new Date(l.scheduledTime).getHours()
+                          ).padStart(2, "0")}:${String(
+                            new Date(l.scheduledTime).getMinutes()
+                          ).padStart(2, "0")}`;
+                          return logTimeStr === item.scheduledTime;
+                        });
+
                     return (
                       <DoseItemCard
-                        key={med.id}
-                        medication={med}
+                        key={`${item.medication.id}-${item.scheduledTime || idx}`}
+                        medication={item.medication}
                         log={log}
-                        onRecordDose={(medId, status) => recordDose(medId, status)}
+                        scheduledTime={item.scheduledTime}
+                        scheduledDateTime={item.scheduledDateTime}
+                        onRecordDose={(medId, status) =>
+                          recordDose(medId, status, item.scheduledDateTime)
+                        }
                       />
                     );
                   })}

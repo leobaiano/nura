@@ -1,70 +1,139 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { medicationService } from "@/features/medications/services/medicationService";
 import { historyService } from "../services/historyService";
+import { scheduleService } from "@/features/medications/services/scheduleService";
+import { notificationService } from "@/features/medications/services/notificationService";
+import { useEffect } from "react";
+import { Medication } from "@/features/medications/types";
+import { DoseLog } from "../types";
 
 export function useDashboard(profileId: number | null) {
   const data = useLiveQuery(async () => {
     if (!profileId) return null;
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const nowTime = today.getTime();
 
-    // 1. Busca medicamentos do perfil ativo
-    const medications = await db.medications
-      .where("profileId")
-      .equals(profileId)
-      .toArray();
+    // 1. Busca todos os medicamentos ativos do perfil
+    const allMeds = await medicationService.getByProfile(profileId);
+    const activeMeds = allMeds.filter((m: Medication) => m.active);
 
-    // 2. Busca histórico de doses de hoje
-    const todayLogs = await db.doseLogs
-      .where("profileId")
-      .equals(profileId)
-      .filter((log) => {
-        if (!log.takenAt) return false;
-        const logDate = new Date(log.takenAt);
-        return logDate >= today && logDate < tomorrow;
-      })
-      .toArray();
+    // 2. Busca histórico do dia atual
+    const allLogs = await historyService.getByProfile(profileId);
+    const todayLogs = allLogs.filter((log: DoseLog) => {
+      const logDate = new Date(log.scheduledTime);
+      return (
+        logDate.getFullYear() === today.getFullYear() &&
+        logDate.getMonth() === today.getMonth() &&
+        logDate.getDate() === today.getDate()
+      );
+    });
 
-    // 3. Busca estoques baixos
-    const medIds = medications
-      .map((m) => m.id!)
-      .filter((id): id is number => id !== undefined);
+    // 3. Projeta as doses agendadas do dia
+    const scheduledDoses = scheduleService.getScheduledDosesForDate(
+      activeMeds,
+      today
+    );
+
+    // 4. Mapeia estoque para alerta de estoque baixo
+    const medIds = activeMeds
+      .map((m: Medication) => m.id!)
+      .filter((id: number | undefined): id is number => id !== undefined);
 
     const stocks = await db.stocks
       .where("medicationId")
       .anyOf(medIds)
       .toArray();
 
-    const lowStockMeds = medications.filter((med) => {
-      const stock = stocks.find((s) => s.medicationId === med.id);
-      return stock ? stock.currentQuantity <= stock.minimumThreshold : false;
+    const lowStockMeds = activeMeds
+      .map((med: Medication) => {
+        const stock = stocks.find((s) => s.medicationId === med.id);
+        return { ...med, stock };
+      })
+      .filter(
+        (item) =>
+          item.stock && item.stock.currentQuantity <= item.stock.minimumThreshold
+      );
+
+    // 5. Cálculo Rígido e Preciso das Estatísticas (Tomadas, Atrasadas, Sob Demanda)
+    let takenCount = 0;
+    let lateCount = 0;
+    let skippedCount = 0;
+
+    // A. Conta tomadas sob demanda (logs de remédios sem horário fixo)
+    const asNeededLogs = todayLogs.filter((log: DoseLog) => {
+      const med = activeMeds.find((m) => m.id === log.medicationId);
+      return med?.scheduleType === "as_needed" || !med?.scheduleType;
+    });
+    takenCount += asNeededLogs.length;
+
+    // B. Avalia cada dose agendada projetada
+    scheduledDoses.forEach((item) => {
+      if (!item.scheduledTime) return; // Pula sob demanda já contados
+
+      // Procura o log específico para este medicamento E este horário
+      const log = todayLogs.find((l: DoseLog) => {
+        if (l.medicationId !== item.medication.id) return false;
+        const logTimeStr = `${String(new Date(l.scheduledTime).getHours()).padStart(2, "0")}:${String(new Date(l.scheduledTime).getMinutes()).padStart(2, "0")}`;
+        return logTimeStr === item.scheduledTime;
+      });
+
+      if (log) {
+        if (log.status === "taken" || log.status === "late") {
+          takenCount++;
+        } else if (log.status === "skipped") {
+          skippedCount++;
+        }
+      } else {
+        // Se ainda não tem log e a hora agendada já passou, é ATRASADA
+        if (item.scheduledDateTime && item.scheduledDateTime.getTime() < nowTime) {
+          lateCount++;
+        }
+      }
     });
 
-    // Métricas do Dia ("taken" | "skipped" | "late")
-    const taken = todayLogs.filter((l) => l.status === "taken").length;
-    const skipped = todayLogs.filter((l) => l.status === "skipped").length;
-    const late = todayLogs.filter((l) => l.status === "late").length;
-
     return {
-      medications,
+      medications: activeMeds,
+      scheduledDoses,
       todayLogs,
       lowStockMeds,
       stats: {
-        total: todayLogs.length,
-        taken,
-        skipped,
-        late,
+        total: scheduledDoses.length,
+        taken: takenCount,
+        late: lateCount,
+        skipped: skippedCount,
       },
     };
   }, [profileId]);
 
+  // Efeito de Notificação
+  useEffect(() => {
+    if (!data?.scheduledDoses) return;
+
+    notificationService.requestPermission();
+
+    data.scheduledDoses.forEach((item) => {
+      if (item.scheduledDateTime && item.medication.id) {
+        const isTaken = data.todayLogs.some(
+          (log: DoseLog) => log.medicationId === item.medication.id
+        );
+
+        if (!isTaken) {
+          notificationService.scheduleDoseReminder(
+            item.medication.name,
+            `${item.medication.dosage} ${item.medication.unit}`,
+            item.scheduledDateTime
+          );
+        }
+      }
+    });
+  }, [data?.scheduledDoses, data?.todayLogs]);
+
   const recordDose = async (
     medicationId: number,
-    status: "taken" | "skipped" | "late",
-    notes?: string
+    status: "taken" | "skipped" | "late" = "taken",
+    scheduledDateTime?: Date
   ) => {
     if (!profileId) return;
 
@@ -73,18 +142,18 @@ export function useDashboard(profileId: number | null) {
     await historyService.logDose({
       profileId,
       medicationId,
-      scheduledTime: now,
-      takenAt: now,
+      scheduledTime: scheduledDateTime ?? now,
+      takenAt: status === "skipped" ? undefined : now,
       status,
-      notes,
     });
   };
 
   return {
     medications: data?.medications ?? [],
+    scheduledDoses: data?.scheduledDoses ?? [],
     todayLogs: data?.todayLogs ?? [],
     lowStockMeds: data?.lowStockMeds ?? [],
-    stats: data?.stats ?? { total: 0, taken: 0, skipped: 0, late: 0 },
+    stats: data?.stats ?? { total: 0, taken: 0, late: 0, skipped: 0 },
     isLoading: data === undefined,
     recordDose,
   };
