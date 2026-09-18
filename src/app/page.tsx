@@ -17,11 +17,28 @@ import { DoseLog } from "@/features/history/types";
 import { db } from "@/lib/db";
 import { NotificationBanner } from "@/features/history/components/NotificationBanner";
 import { notificationScheduler } from "@/lib/notificationScheduler";
+import { AntiOverdoseModal } from "@/features/history/components/AntiOverdoseModal";
 
 export default function Home() {
   const { profiles, isLoading, addProfile } = useProfiles();
   const [activeProfileId, setActiveProfileId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"dashboard" | "medications" | "history">("dashboard");
+
+  // Estados de controlo para a Trava Anti-Overdose (US13)
+  const [overdoseModalState, setOverdoseModalState] = useState<{
+    isOpen: boolean;
+    medicationId: number | null;
+    medicationName: string;
+    lastTakenTime: Date;
+    minutesAgo: number;
+    scheduledDateTime?: Date;
+  }>({
+    isOpen: false,
+    medicationId: null,
+    medicationName: "",
+    lastTakenTime: new Date(),
+    minutesAgo: 0,
+  });
 
   useEffect(() => {
     if (profiles.length > 0 && activeProfileId === null) {
@@ -44,12 +61,9 @@ export default function Home() {
 
         try {
           await db.transaction("rw", [db.medications, db.stocks, db.doseLogs], async () => {
-            // 1. Busca o medicamento para confirmar o profileId real se necessário
             const medication = await db.medications.get(medicationId);
-            // Usa o profileId do payload enviado na notificação, ou do banco, ou o padrão seguro
             const actualProfileId = payloadProfileId || (medication ? medication.profileId : 1);
 
-            // 2. Abate 1 unidade do estoque correspondente
             const stock = await db.stocks.where("medicationId").equals(medicationId).first();
             if (stock && stock.id !== undefined) {
               await db.stocks.update(stock.id, {
@@ -58,7 +72,6 @@ export default function Home() {
               });
             }
 
-            // 3. Registra o log de adesão com o profileId correto
             await db.doseLogs.add({
               medicationId,
               profileId: actualProfileId,
@@ -91,6 +104,7 @@ export default function Home() {
     stats,
     isLoading: isDashboardLoading,
     recordDose,
+    medications,
   } = useDashboard(activeProfileId);
 
   const {
@@ -99,6 +113,32 @@ export default function Home() {
     addMedication,
     removeMedication,
   } = useMedications(activeProfileId ?? undefined);
+
+  // Wrapper seguro para lidar com o registo e intercetar o aviso Anti-Overdose
+  const handleRecordDoseWithCheck = async (
+    medId: number,
+    status: "taken" | "skipped" | "late",
+    scheduledDateTime?: Date,
+    forceOverride: boolean = false
+  ) => {
+    try {
+      await recordDose(medId, status, scheduledDateTime, forceOverride);
+    } catch (err: any) {
+      if (err && err.code === "ANTI_OVERDOSE_WARNING") {
+        const medObj = medications.find((m) => m.id === medId);
+        setOverdoseModalState({
+          isOpen: true,
+          medicationId: medId,
+          medicationName: medObj?.name || "Medicamento",
+          lastTakenTime: err.lastTakenTime,
+          minutesAgo: err.minutesAgo,
+          scheduledDateTime,
+        });
+      } else {
+        console.error("Erro ao registrar dose:", err);
+      }
+    }
+  };
 
   if (isLoading || isDashboardLoading) {
     return (
@@ -243,7 +283,7 @@ export default function Home() {
                         scheduledTime={item.scheduledTime}
                         scheduledDateTime={item.scheduledDateTime}
                         onRecordDose={(medId, status) =>
-                          recordDose(medId, status, item.scheduledDateTime)
+                          handleRecordDoseWithCheck(medId, status, item.scheduledDateTime)
                         }
                       />
                     );
@@ -269,6 +309,28 @@ export default function Home() {
           <HistoryView profileId={activeProfileId} />
         )}
       </main>
+
+      {/* Modal C: Alerta de Trava Anti-Overdose (US13) */}
+      <AntiOverdoseModal
+        isOpen={overdoseModalState.isOpen}
+        medicationName={overdoseModalState.medicationName}
+        lastTakenTime={overdoseModalState.lastTakenTime}
+        minutesAgo={overdoseModalState.minutesAgo}
+        onCancel={() =>
+          setOverdoseModalState({ ...overdoseModalState, isOpen: false })
+        }
+        onConfirmOverride={async () => {
+          if (overdoseModalState.medicationId !== null) {
+            await handleRecordDoseWithCheck(
+              overdoseModalState.medicationId,
+              "taken",
+              overdoseModalState.scheduledDateTime,
+              true // Força a gravação ignorando o limite de tempo
+            );
+          }
+          setOverdoseModalState({ ...overdoseModalState, isOpen: false });
+        }}
+      />
     </div>
   );
 }

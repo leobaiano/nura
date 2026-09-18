@@ -130,14 +130,42 @@ export function useDashboard(profileId: number | null) {
     });
   }, [data?.scheduledDoses, data?.todayLogs]);
 
+  const ANTI_OVERDOSE_LIMIT_MINUTES = 60;
+
   const recordDose = async (
     medicationId: number,
     status: "taken" | "skipped" | "late" = "taken",
-    scheduledDateTime?: Date
+    scheduledDateTime?: Date,
+    forceOverride: boolean = false // <--- Adicionado parâmetro opcional
   ) => {
     if (!profileId) return;
 
     const now = new Date();
+
+    // Se for sob demanda, verifica se houve tomada recente para gatilho anti-overdose (exceto se forçado)
+    const med = data?.medications.find((m) => m.id === medicationId);
+    const isAsNeeded = med?.scheduleType === "as_needed" || !med?.scheduleType;
+
+    if (isAsNeeded && status === "taken" && !forceOverride) {
+      const recentLog = data?.todayLogs.find((log: DoseLog) => {
+        if (log.medicationId !== medicationId) return false;
+        const diffMinutes =
+          (now.getTime() - new Date(log.takenAt || log.createdAt).getTime()) /
+          (1000 * 60);
+        return diffMinutes < ANTI_OVERDOSE_LIMIT_MINUTES;
+      });
+
+      if (recentLog) {
+        throw {
+          code: "ANTI_OVERDOSE_WARNING",
+          lastTakenTime: new Date(recentLog.takenAt || recentLog.createdAt),
+          minutesAgo: Math.round(
+            (now.getTime() - new Date(recentLog.takenAt || recentLog.createdAt).getTime()) /
+              (1000 * 60)
+          ),
+        };
+      }
+    }
 
     await historyService.logDose({
       profileId,
