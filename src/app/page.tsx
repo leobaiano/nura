@@ -11,13 +11,14 @@ import { LowStockAlert } from "@/features/history/components/LowStockAlert";
 import { DoseItemCard } from "@/features/history/components/DoseItemCard";
 import { MedicationList } from "@/features/medications/components/MedicationList";
 import { AddMedicationSheet } from "@/features/medications/components/AddMedicationSheet";
-import { LayoutDashboard, Pill } from "lucide-react";
+import { HistoryView } from "@/features/history/components/HistoryView";
+import { LayoutDashboard, Pill, Activity } from "lucide-react";
 import { DoseLog } from "@/features/history/types";
 
 export default function Home() {
   const { profiles, isLoading, addProfile } = useProfiles();
   const [activeProfileId, setActiveProfileId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "medications">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "medications" | "history">("dashboard");
 
   useEffect(() => {
     if (profiles.length > 0 && activeProfileId === null) {
@@ -69,29 +70,40 @@ export default function Home() {
       />
 
       <main className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        {/* Navegação por Abas */}
-        <div className="flex bg-nura-slate-200/60 p-1 rounded-2xl max-w-md mx-auto">
+        {/* Navegação por Abas (Dashboard, Medicamentos e Histórico) */}
+        <div className="flex bg-nura-slate-200/60 p-1 rounded-2xl max-w-lg mx-auto">
           <button
             onClick={() => setActiveTab("dashboard")}
-            className={`flex-1 py-2 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               activeTab === "dashboard"
                 ? "bg-white text-nura-teal-700 shadow-xs"
                 : "text-nura-slate-600 hover:text-nura-slate-900"
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
-            <span>Doses do Dia</span>
+            <span>Doses</span>
           </button>
           <button
             onClick={() => setActiveTab("medications")}
-            className={`flex-1 py-2 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               activeTab === "medications"
                 ? "bg-white text-nura-teal-700 shadow-xs"
                 : "text-nura-slate-600 hover:text-nura-slate-900"
             }`}
           >
             <Pill className="w-4 h-4" />
-            <span>Medicamentos</span>
+            <span>Remédios</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              activeTab === "history"
+                ? "bg-white text-nura-teal-700 shadow-xs"
+                : "text-nura-slate-600 hover:text-nura-slate-900"
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            <span>Histórico</span>
           </button>
         </div>
 
@@ -138,12 +150,10 @@ export default function Home() {
               ) : (
                 <div className="space-y-2.5">
                   {scheduledDoses.map((item, idx) => {
-                    // Se for sob demanda, não busca log para travar a tela
                     const isAsNeeded =
                       item.medication.scheduleType === "as_needed" ||
                       !item.medication.scheduleType;
 
-                    // Para doses agendadas, busca o log bater EXATAMENTE com o scheduledTime
                     const log = isAsNeeded
                       ? undefined
                       : todayLogs.find((l: DoseLog) => {
@@ -183,6 +193,11 @@ export default function Home() {
             onAddMedication={addMedication}
             onDeleteMedication={removeMedication}
           />
+        )}
+
+        {/* ABA 3: HISTÓRICO DE TOMADAS E ADESÃO */}
+        {activeTab === "history" && activeProfileId && (
+          <HistoryView profileId={activeProfileId} />
         )}
       </main>
     </div>
