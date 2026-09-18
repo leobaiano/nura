@@ -1,22 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { Pill, Download } from "lucide-react";
+import { Pill, Download, Users } from "lucide-react";
 import { BackupModal } from "./BackupModal";
+import { ProfileManagementSheet } from "@/features/profiles/components/ProfileManagementSheet";
 import { Profile } from "@/features/profiles/types";
 
 interface HeaderProps {
   profiles: Profile[];
   selectedProfileId: number | null;
   onSelectProfile: (id: number) => void;
+  onAddProfile: (name: string, role: Profile["role"]) => Promise<void>;
+  onDeleteProfile: (id: number) => Promise<void>;
 }
 
 export function Header({
   profiles,
   selectedProfileId,
   onSelectProfile,
+  onAddProfile,
+  onDeleteProfile,
 }: HeaderProps) {
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isProfilesSheetOpen, setIsProfilesSheetOpen] = useState(false);
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value === "manage-profiles") {
+      setIsProfilesSheetOpen(true);
+    } else {
+      onSelectProfile(Number(value));
+    }
+  };
 
   return (
     <>
@@ -34,10 +49,10 @@ export function Header({
 
           {/* Perfis e Ações */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Seletor de Perfil */}
+            {/* Seletor de Perfil com Opção de Gerenciar */}
             <select
               value={selectedProfileId ?? ""}
-              onChange={(e) => onSelectProfile(Number(e.target.value))}
+              onChange={handleSelectChange}
               className="h-10 px-3 rounded-xl border border-nura-slate-200 bg-nura-slate-50 text-xs sm:text-sm font-semibold text-nura-slate-800 focus:outline-none focus:ring-2 focus:ring-nura-teal-500 cursor-pointer transition-all"
             >
               {profiles.map((profile) => (
@@ -45,6 +60,9 @@ export function Header({
                   {profile.name} {profile.isDefault ? "(Eu)" : ""}
                 </option>
               ))}
+              <option value="manage-profiles" className="font-bold text-nura-teal-700">
+                + Dependentes
+              </option>
             </select>
 
             {/* Botão de Backup */}
@@ -66,6 +84,15 @@ export function Header({
         onRestored={() => {
           setIsBackupOpen(false);
         }}
+      />
+
+      {/* Sidesheet de Gestão de Membros (US05) */}
+      <ProfileManagementSheet
+        isOpen={isProfilesSheetOpen}
+        onClose={() => setIsProfilesSheetOpen(false)}
+        profiles={profiles}
+        onAddProfile={onAddProfile}
+        onDeleteProfile={onDeleteProfile}
       />
     </>
   );

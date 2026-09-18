@@ -14,6 +14,7 @@ import { AddMedicationSheet } from "@/features/medications/components/AddMedicat
 import { HistoryView } from "@/features/history/components/HistoryView";
 import { LayoutDashboard, Pill, Activity } from "lucide-react";
 import { DoseLog } from "@/features/history/types";
+import { db } from "@/lib/db";
 
 export default function Home() {
   const { profiles, isLoading, addProfile } = useProfiles();
@@ -73,6 +74,16 @@ export default function Home() {
         profiles={profiles}
         selectedProfileId={activeProfileId}
         onSelectProfile={setActiveProfileId}
+        onAddProfile={async (name, role) => {
+          await addProfile(name, role);
+        }}
+        onDeleteProfile={async (id) => {
+          await db.transaction('rw', [db.profiles, db.medications, db.doseLogs, db.stocks], async () => {
+            await db.medications.where('profileId').equals(id).delete();
+            await db.profiles.delete(id);
+          });
+          window.location.reload();
+        }}
       />
 
       <main className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-6">
