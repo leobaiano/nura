@@ -80,7 +80,7 @@ export function DoseItemCard({
         {/* Informações detalhadas sem truncamento forçado */}
         <div className="space-y-1.5 flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-bold text-sm sm:text-base text-nura-slate-900 leading-snug break-words">
+            <p className="font-bold text-sm sm:text-base text-nura-slate-900 leading-snug wrap-break-word">
               {medication.name}
             </p>
 
@@ -114,7 +114,7 @@ export function DoseItemCard({
             </div>
           </div>
 
-          <p className="text-xs text-nura-slate-600 leading-relaxed break-words">
+          <p className="text-xs text-nura-slate-600 leading-relaxed wrap-break-word">
             {medication.dosage} {medication.unit}
             {medication.instructions && ` • ${medication.instructions}`}
           </p>
