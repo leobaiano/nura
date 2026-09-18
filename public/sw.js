@@ -75,3 +75,46 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
+// ==========================================
+// MÓDULO DE NOTIFICAÇÕES LOCAIS (US11)
+// ==========================================
+
+// Escuta por mensagens vindas da aplicação principal (Client -> Service Worker)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_MEDICATION_ALERT') {
+    const { medicationName, dosage, profileName } = event.data;
+
+    const title = `Hora do Remédio: ${medicationName} 💊`;
+    const options = {
+      body: `${profileName} precisa tomar ${dosage}. Toque para abrir o Nura.`,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: `medication-${Date.now()}`,
+      requireInteraction: true,
+      data: { medicationName, profileName }
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(title, options)
+    );
+  }
+});
+
+// Manipulador de clique na notificação (Foca no app aberto ou abre nova janela)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
+  );
+});

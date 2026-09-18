@@ -15,6 +15,8 @@ import { HistoryView } from "@/features/history/components/HistoryView";
 import { LayoutDashboard, Pill, Activity } from "lucide-react";
 import { DoseLog } from "@/features/history/types";
 import { db } from "@/lib/db";
+import { NotificationBanner } from "@/features/history/components/NotificationBanner";
+import { notificationScheduler } from "@/lib/notificationScheduler";
 
 export default function Home() {
   const { profiles, isLoading, addProfile } = useProfiles();
@@ -28,6 +30,8 @@ export default function Home() {
         setActiveProfileId(defaultProfile.id);
       }
     }
+
+    notificationScheduler.initScheduler();
   }, [profiles, activeProfileId]);
 
   const {
@@ -136,6 +140,7 @@ export default function Home() {
               </p>
             </div>
 
+            <NotificationBanner />
             <LowStockAlert medications={lowStockMeds} />
             <DoseSummaryCards stats={stats} />
 
