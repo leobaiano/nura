@@ -110,9 +110,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         </form>
 
         <div className="relative flex py-2 items-center">
-          <div className="flex-grow border-t border-nura-slate-200"></div>
-          <span className="flex-shrink mx-4 text-xs text-nura-slate-400 uppercase font-semibold">ou</span>
-          <div className="flex-grow border-t border-nura-slate-200"></div>
+          <div className="grow border-t border-nura-slate-200"></div>
+          <span className="shrink mx-4 text-xs text-nura-slate-400 uppercase font-semibold">ou</span>
+          <div className="grow border-t border-nura-slate-200"></div>
         </div>
 
         {/* Opção de Restaurar Backup no Onboarding */}
