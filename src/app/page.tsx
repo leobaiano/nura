@@ -56,7 +56,13 @@ export default function Home() {
   }
 
   if (profiles.length === 0) {
-    return <OnboardingScreen onComplete={addProfile} />;
+    return (
+      <OnboardingScreen
+        onComplete={async (data) => {
+          await addProfile(data.name, data.role);
+        }}
+      />
+    );
   }
 
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
