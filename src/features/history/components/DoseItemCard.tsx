@@ -16,7 +16,6 @@ interface DoseItemCardProps {
   ) => Promise<void>;
 }
 
-// Tolerância em minutos para permitir tomar adiantado (ex: 15 minutos)
 const ADVANCE_TOLERANCE_MINUTES = 15;
 
 export function DoseItemCard({
@@ -33,14 +32,12 @@ export function DoseItemCard({
 
   const now = new Date();
   
-  // Identifica se a dose está atrasada
   const isOverdue =
     !isAsNeeded &&
     !isTaken &&
     scheduledDateTime !== undefined &&
     scheduledDateTime.getTime() < now.getTime();
 
-  // Identifica se é uma dose futura além da janela de tolerância
   const isFuture =
     !isAsNeeded &&
     !isTaken &&
@@ -60,11 +57,12 @@ export function DoseItemCard({
         isOverdue
           ? "bg-amber-50/60 border-amber-300"
           : isFuture
-          ? "bg-nura-slate-50/50 border-nura-slate-200/60 opacity-80"
+          ? "bg-nura-slate-50 border-nura-slate-200/80"
           : "bg-white border-nura-slate-200"
       }`}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+        {/* Ícone */}
         <div
           className={`p-2.5 rounded-xl shrink-0 ${
             isTaken
@@ -72,48 +70,51 @@ export function DoseItemCard({
               : isOverdue
               ? "bg-amber-100 text-amber-700"
               : isFuture
-              ? "bg-nura-slate-200/60 text-nura-slate-500"
+              ? "bg-nura-teal-50 text-nura-teal-600/70 border border-nura-teal-100"
               : "bg-nura-teal-100 text-nura-teal-600"
           }`}
         >
           <Pill className="w-5 h-5" />
         </div>
 
-        <div className="space-y-1">
+        {/* Informações detalhadas sem truncamento forçado */}
+        <div className="space-y-1.5 flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-bold text-sm sm:text-base text-nura-slate-900 leading-tight">
+            <p className="font-bold text-sm sm:text-base text-nura-slate-900 leading-snug break-words">
               {medication.name}
             </p>
 
-            {/* Badge de Horário ou Sob Demanda */}
-            {scheduledTime ? (
-              <span
-                className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md ${
-                  isOverdue
-                    ? "bg-amber-200 text-amber-900"
-                    : isFuture
-                    ? "bg-nura-slate-200/70 text-nura-slate-600"
-                    : "bg-nura-slate-100 text-nura-slate-700"
-                }`}
-              >
-                <Clock className="w-3 h-3" />
-                {scheduledTime}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-nura-slate-100 text-nura-slate-700">
-                Sob Demanda
-              </span>
-            )}
+            {/* Badges alinhadas dinamicamente */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {scheduledTime ? (
+                <span
+                  className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md shrink-0 ${
+                    isOverdue
+                      ? "bg-amber-200 text-amber-900"
+                      : isFuture
+                      ? "bg-nura-slate-200/60 text-nura-slate-700"
+                      : "bg-nura-slate-100 text-nura-slate-700"
+                  }`}
+                >
+                  <Clock className="w-3 h-3" />
+                  {scheduledTime}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-nura-slate-100 text-nura-slate-700 shrink-0">
+                  Sob Demanda
+                </span>
+              )}
 
-            {isOverdue && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-white px-1.5 py-0.5 rounded-md">
-                <AlertCircle className="w-3 h-3" />
-                Atrasado
-              </span>
-            )}
+              {isOverdue && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-white px-1.5 py-0.5 rounded-md shrink-0">
+                  <AlertCircle className="w-3 h-3" />
+                  Atrasado
+                </span>
+              )}
+            </div>
           </div>
 
-          <p className="text-xs text-nura-slate-600">
+          <p className="text-xs text-nura-slate-600 leading-relaxed break-words">
             {medication.dosage} {medication.unit}
             {medication.instructions && ` • ${medication.instructions}`}
           </p>
@@ -125,11 +126,11 @@ export function DoseItemCard({
         onClick={handleTakeDose}
         disabled={isTaken || isFuture}
         variant={isTaken || isFuture ? "outline" : "default"}
-        className={`h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
+        className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
           isTaken
             ? "bg-emerald-50 border-emerald-300 text-emerald-700 opacity-90"
             : isFuture
-            ? "bg-nura-slate-100 border-nura-slate-200 text-nura-slate-400 cursor-not-allowed"
+            ? "bg-nura-slate-100/80 border-nura-slate-200 text-nura-slate-400 cursor-not-allowed"
             : isOverdue
             ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer"
             : "bg-nura-teal-600 hover:bg-nura-teal-700 text-white shadow-xs cursor-pointer"
