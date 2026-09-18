@@ -9,6 +9,12 @@ const STATIC_ASSETS = [
   "/favicon.ico"
 ];
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Instalação do SW e pré-cache dos recursos estáticos
 self.addEventListener("install", (event) => {
   event.waitUntil(
