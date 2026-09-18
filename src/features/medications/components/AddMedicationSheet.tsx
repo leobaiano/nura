@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pill, Package } from "lucide-react";
+import { Plus, Pill, Package, Clock, Trash2 } from "lucide-react";
 
 interface AddMedicationSheetProps {
   onAddMedication: (data: CreateMedicationWithStockInput) => Promise<unknown>;
@@ -41,14 +41,36 @@ export function AddMedicationSheet({ onAddMedication }: AddMedicationSheetProps)
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Estados do formulário
+  // Estados básicos
   const [name, setName] = useState("");
   const [dosage, setDosage] = useState<number | "">(1);
   const [unit, setUnit] = useState<DosageUnit>("comprimido");
   const [instructions, setInstructions] = useState("");
+
+  // Estados de Agendamento
   const [scheduleType, setScheduleType] = useState<ScheduleType>("as_needed");
+  const [intervalHours, setIntervalHours] = useState<number | "">(8);
+  const [firstDoseTime, setFirstDoseTime] = useState<string>("08:00");
+  const [specificTimes, setSpecificTimes] = useState<string[]>(["08:00"]);
+
+  // Estados de Estoque
   const [initialQuantity, setInitialQuantity] = useState<number | "">(20);
   const [minimumThreshold, setMinimumThreshold] = useState<number | "">(5);
+
+  const handleAddSpecificTime = () => {
+    setSpecificTimes([...specificTimes, "12:00"]);
+  };
+
+  const handleRemoveSpecificTime = (index: number) => {
+    if (specificTimes.length === 1) return;
+    setSpecificTimes(specificTimes.filter((_, i) => i !== index));
+  };
+
+  const handleTimeChange = (index: number, value: string) => {
+    const updated = [...specificTimes];
+    updated[index] = value;
+    setSpecificTimes(updated);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,22 +78,36 @@ export function AddMedicationSheet({ onAddMedication }: AddMedicationSheetProps)
 
     try {
       setIsSubmitting(true);
+
+      // Se for intervalo fixo, salvamos o primeiro horário no array specificTimes para referência
+      const resolvedSpecificTimes =
+        scheduleType === "fixed_interval"
+          ? [firstDoseTime]
+          : scheduleType === "specific_times"
+          ? specificTimes
+          : undefined;
+
       await onAddMedication({
         name: name.trim(),
         dosage: Number(dosage),
         unit,
         instructions: instructions.trim() || undefined,
         scheduleType,
+        intervalHours: scheduleType === "fixed_interval" && intervalHours !== "" ? Number(intervalHours) : undefined,
+        specificTimes: resolvedSpecificTimes,
         initialQuantity: Number(initialQuantity),
         minimumThreshold: Number(minimumThreshold),
       });
 
-      // Reset do formulário e fecha o painel lateral
+      // Reset
       setName("");
       setDosage(1);
       setUnit("comprimido");
       setInstructions("");
       setScheduleType("as_needed");
+      setIntervalHours(8);
+      setFirstDoseTime("08:00");
+      setSpecificTimes(["08:00"]);
       setInitialQuantity(20);
       setMinimumThreshold(5);
       setOpen(false);
@@ -99,12 +135,12 @@ export function AddMedicationSheet({ onAddMedication }: AddMedicationSheetProps)
               Cadastrar Medicamento
             </SheetTitle>
             <SheetDescription className="text-xs text-nura-slate-500">
-              Informe os dados do remédio e o estoque inicial disponível.
+              Configure os dados do remédio, horários e estoque inicial.
             </SheetDescription>
           </SheetHeader>
 
           <form id="add-medication-form" onSubmit={handleSubmit} className="space-y-5">
-            {/* Seção: Informações do Remédio */}
+            {/* Seção 1: Informações Básicas */}
             <div className="space-y-3">
               <div>
                 <Label htmlFor="name" className="text-xs font-semibold text-nura-slate-700">
@@ -112,7 +148,7 @@ export function AddMedicationSheet({ onAddMedication }: AddMedicationSheetProps)
                 </Label>
                 <Input
                   id="name"
-                  placeholder="Ex: Paracetamol, Amoxicilina"
+                  placeholder="Ex: Paracetamol, Dipirona"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -163,7 +199,7 @@ export function AddMedicationSheet({ onAddMedication }: AddMedicationSheetProps)
                 </Label>
                 <Input
                   id="instructions"
-                  placeholder="Ex: Tomar após o almoço com bastante água"
+                  placeholder="Ex: Tomar se tiver dor ou febre"
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                   className="mt-1 rounded-xl bg-nura-slate-50 border-nura-slate-200 text-sm"
@@ -173,7 +209,115 @@ export function AddMedicationSheet({ onAddMedication }: AddMedicationSheetProps)
 
             <hr className="border-nura-slate-200 my-2" />
 
-            {/* Seção: Estoque Inicial */}
+            {/* Seção 2: Frequência e Horários */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-nura-slate-900 uppercase tracking-wider">
+                <Clock className="w-4 h-4 text-nura-teal-600" />
+                <span>Frequência de Uso</span>
+              </div>
+
+              <div>
+                <Label className="text-xs font-semibold text-nura-slate-700">Tipo de Agendamento</Label>
+                <Select
+                  value={scheduleType}
+                  onValueChange={(val: ScheduleType) => setScheduleType(val)}
+                >
+                  <SelectTrigger className="mt-1 rounded-xl bg-nura-slate-50 border-nura-slate-200 text-xs sm:text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white rounded-xl border-nura-slate-200">
+                    <SelectItem value="as_needed" className="text-xs sm:text-sm">
+                      Sob Demanda (Conforme necessário)
+                    </SelectItem>
+                    <SelectItem value="fixed_interval" className="text-xs sm:text-sm">
+                      Intervalo Fixo (De X em X horas)
+                    </SelectItem>
+                    <SelectItem value="specific_times" className="text-xs sm:text-sm">
+                      Horários Específicos do Dia
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Opção: Intervalo Fixo com Horário Inicial */}
+              {scheduleType === "fixed_interval" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="intervalHours" className="text-xs font-semibold text-nura-slate-700">
+                      Intervalo (Horas)
+                    </Label>
+                    <Input
+                      id="intervalHours"
+                      type="number"
+                      min="1"
+                      max="24"
+                      placeholder="Ex: 8"
+                      value={intervalHours}
+                      onChange={(e) => setIntervalHours(e.target.value === "" ? "" : Number(e.target.value))}
+                      required
+                      className="mt-1 rounded-xl bg-nura-slate-50 border-nura-slate-200 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="firstDoseTime" className="text-xs font-semibold text-nura-slate-700">
+                      Horário 1ª Dose
+                    </Label>
+                    <Input
+                      id="firstDoseTime"
+                      type="time"
+                      value={firstDoseTime}
+                      onChange={(e) => setFirstDoseTime(e.target.value)}
+                      required
+                      className="mt-1 rounded-xl bg-nura-slate-50 border-nura-slate-200 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Opção: Horários Específicos */}
+              {scheduleType === "specific_times" && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-nura-slate-700">
+                    Horários Definidos
+                  </Label>
+                  {specificTimes.map((time, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        type="time"
+                        value={time}
+                        onChange={(e) => handleTimeChange(index, e.target.value)}
+                        required
+                        className="rounded-xl bg-nura-slate-50 border-nura-slate-200 text-sm"
+                      />
+                      {specificTimes.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveSpecificTime(index)}
+                          className="text-rose-500 hover:bg-rose-50 rounded-xl h-9 w-9 shrink-0 cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddSpecificTime}
+                    className="w-full rounded-xl border-dashed border-nura-slate-300 text-xs font-medium text-nura-slate-600 hover:bg-nura-slate-50 cursor-pointer mt-1"
+                  >
+                    + Adicionar outro horário
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <hr className="border-nura-slate-200 my-2" />
+
+            {/* Seção 3: Estoque Inicial */}
             <div className="space-y-3">
               <div className="flex items-center gap-1.5 text-xs font-bold text-nura-slate-900 uppercase tracking-wider">
                 <Package className="w-4 h-4 text-nura-teal-600" />
