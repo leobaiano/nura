@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import { NotificationBanner } from "@/features/history/components/NotificationBanner";
 import { notificationScheduler } from "@/lib/notificationScheduler";
 import { AntiOverdoseModal } from "@/features/history/components/AntiOverdoseModal";
+import { AnnouncementModal } from "@/features/announcements/components/AnnouncementModal";
 
 export default function Home() {
   const { profiles, isLoading, addProfile } = useProfiles();
@@ -164,6 +165,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-nura-slate-50 flex flex-col font-sans">
+      <AnnouncementModal />
+      
       <Header
         profiles={profiles}
         selectedProfileId={activeProfileId}
