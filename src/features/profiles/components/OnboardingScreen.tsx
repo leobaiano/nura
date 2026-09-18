@@ -5,6 +5,7 @@ import { Profile } from "../types";
 import { backupService } from "@/lib/backupService";
 import { Button } from "@/components/ui/button";
 import { Pill, ShieldCheck, Upload, RefreshCw, AlertTriangle } from "lucide-react";
+import { OnboardingPwaCard } from "@/components/OnboardingPwaCard";
 
 interface OnboardingScreenProps {
   onComplete: (data: Omit<Profile, "id" | "createdAt">) => Promise<void>;
@@ -76,6 +77,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           </div>
         </div>
 
+        <OnboardingPwaCard />
+        
         {/* Erro de Restauração se houver */}
         {errorMessage && (
           <div className="p-3 rounded-xl text-xs font-semibold bg-rose-50 border border-rose-200 text-rose-800 flex items-center gap-2">

@@ -5,6 +5,7 @@ import { Pill, Download, Users } from "lucide-react";
 import { BackupModal } from "./BackupModal";
 import { ProfileManagementSheet } from "@/features/profiles/components/ProfileManagementSheet";
 import { Profile } from "@/features/profiles/types";
+import { HeaderPwaTrigger } from "./HeaderPwaTrigger";
 
 interface HeaderProps {
   profiles: Profile[];
@@ -39,6 +40,8 @@ export function Header({
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
           {/* Logo e Nome do App */}
           <div className="flex items-center gap-2.5">
+            <HeaderPwaTrigger />
+            
             <div className="w-9 h-9 rounded-2xl bg-nura-teal-100 text-nura-teal-700 flex items-center justify-center shadow-xs">
               <Pill className="w-5 h-5" />
             </div>
