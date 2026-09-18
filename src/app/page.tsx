@@ -34,6 +34,56 @@ export default function Home() {
     notificationScheduler.initScheduler();
   }, [profiles, activeProfileId]);
 
+  // Ouvinte de mensagens vindas do Service Worker (Quick Actions da US12)
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+    const handleServiceWorkerMessage = async (event: MessageEvent) => {
+      if (event.data && event.data.type === "EXECUTE_CONFIRM_DOSE") {
+        const { medicationId, profileId: payloadProfileId } = event.data.payload;
+
+        try {
+          await db.transaction("rw", [db.medications, db.stocks, db.doseLogs], async () => {
+            // 1. Busca o medicamento para confirmar o profileId real se necessário
+            const medication = await db.medications.get(medicationId);
+            // Usa o profileId do payload enviado na notificação, ou do banco, ou o padrão seguro
+            const actualProfileId = payloadProfileId || (medication ? medication.profileId : 1);
+
+            // 2. Abate 1 unidade do estoque correspondente
+            const stock = await db.stocks.where("medicationId").equals(medicationId).first();
+            if (stock && stock.id !== undefined) {
+              await db.stocks.update(stock.id, {
+                currentQuantity: Math.max(0, stock.currentQuantity - 1),
+                updatedAt: new Date(),
+              });
+            }
+
+            // 3. Registra o log de adesão com o profileId correto
+            await db.doseLogs.add({
+              medicationId,
+              profileId: actualProfileId,
+              scheduledTime: new Date(),
+              takenAt: new Date(),
+              status: "taken",
+              notes: "Confirmado via Quick Action (Notificação)",
+              createdAt: new Date(),
+            });
+          });
+
+          console.log("Dose confirmada com o profileId correto!");
+        } catch (error) {
+          console.error("Erro ao processar confirmação do Service Worker:", error);
+        }
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
+    };
+  }, []);
+
   const {
     scheduledDoses,
     todayLogs,
@@ -95,33 +145,30 @@ export default function Home() {
         <div className="flex bg-nura-slate-200/60 p-1 rounded-2xl max-w-lg mx-auto">
           <button
             onClick={() => setActiveTab("dashboard")}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              activeTab === "dashboard"
+            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeTab === "dashboard"
                 ? "bg-white text-nura-teal-700 shadow-xs"
                 : "text-nura-slate-600 hover:text-nura-slate-900"
-            }`}
+              }`}
           >
             <LayoutDashboard className="w-4 h-4" />
             <span>Doses</span>
           </button>
           <button
             onClick={() => setActiveTab("medications")}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              activeTab === "medications"
+            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeTab === "medications"
                 ? "bg-white text-nura-teal-700 shadow-xs"
                 : "text-nura-slate-600 hover:text-nura-slate-900"
-            }`}
+              }`}
           >
             <Pill className="w-4 h-4" />
             <span>Remédios</span>
           </button>
           <button
             onClick={() => setActiveTab("history")}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              activeTab === "history"
+            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeTab === "history"
                 ? "bg-white text-nura-teal-700 shadow-xs"
                 : "text-nura-slate-600 hover:text-nura-slate-900"
-            }`}
+              }`}
           >
             <Activity className="w-4 h-4" />
             <span>Histórico</span>
@@ -179,14 +226,14 @@ export default function Home() {
                     const log = isAsNeeded
                       ? undefined
                       : todayLogs.find((l: DoseLog) => {
-                          if (l.medicationId !== item.medication.id) return false;
-                          const logTimeStr = `${String(
-                            new Date(l.scheduledTime).getHours()
-                          ).padStart(2, "0")}:${String(
-                            new Date(l.scheduledTime).getMinutes()
-                          ).padStart(2, "0")}`;
-                          return logTimeStr === item.scheduledTime;
-                        });
+                        if (l.medicationId !== item.medication.id) return false;
+                        const logTimeStr = `${String(
+                          new Date(l.scheduledTime).getHours()
+                        ).padStart(2, "0")}:${String(
+                          new Date(l.scheduledTime).getMinutes()
+                        ).padStart(2, "0")}`;
+                        return logTimeStr === item.scheduledTime;
+                      });
 
                     return (
                       <DoseItemCard

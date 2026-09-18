@@ -1,11 +1,14 @@
 import { db } from "@/lib/db";
 
 export const notificationScheduler = {
-  // Inicia o motor de verificação periódica
+  // Inicia o motor de verificação periódica (roda a cada 30 segundos)
   initScheduler() {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
-    // Roda a verificação a cada 30 segundos
+    // Evita duplicações de interval caso o hook recarregue
+    if ((window as any).__nura_scheduler_active) return;
+    (window as any).__nura_scheduler_active = true;
+
     setInterval(async () => {
       if (Notification.permission !== "granted") return;
 
@@ -15,7 +18,7 @@ export const notificationScheduler = {
         const currentMinutes = String(now.getMinutes()).padStart(2, "0");
         const currentTimeStr = `${currentHours}:${currentMinutes}`;
 
-        // Busca medicamentos e perfis no IndexedDB
+        // Busca todos os medicamentos e perfis gravados no IndexedDB (Dexie)
         const medications = await db.medications.toArray();
         const profiles = await db.profiles.toArray();
 
@@ -23,37 +26,57 @@ export const notificationScheduler = {
           const profile = profiles.find((p) => p.id === med.profileId);
           const profileName = profile ? profile.name : "Paciente";
 
-          // Aqui cruzamos o horário atual com os horários programados do medicamento.
-          // (Para fins de teste da US11, podemos verificar se o horário bate ou disparar via ação manual)
+          // Utiliza a propriedade correta 'specificTimes' definida na interface Medication
+          const scheduledTimes = med.specificTimes || [];
+          
+          if (scheduledTimes.includes(currentTimeStr)) {
+            // Envia a mensagem para o Service Worker disparar o alerta nativo
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+              navigator.serviceWorker.controller.postMessage({
+                type: 'SHOW_MEDICATION_ALERT',
+                medicationId: med.id,
+                medicationName: med.name,
+                dosage: `${med.dosage} ${med.unit || ''}`,
+                profileName
+              });
+            }
+          }
         }
       } catch (error) {
-        console.error("Erro ao verificar agendamentos de medicamentos:", error);
+        console.error("Erro no motor de agendamento de notificações:", error);
       }
-    }, 30000);
+    }, 30000); // 30 segundos
   },
 
-  // Função utilitária para disparar um alerta imediato via Service Worker (ideal para testes da US11)
-  async triggerTestAlert(medicationName: string, dosage: string, profileName: string) {
+  // Função utilitária para disparar um teste manual imediato validando a US11 e US12
+  async triggerTestAlert(medicationName: string, dosage: string, profileName: string, medicationId: number = 1) {
     if (typeof window === "undefined") return;
 
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
         type: 'SHOW_MEDICATION_ALERT',
+        medicationId,
         medicationName,
         dosage,
         profileName
       });
     } else {
-      // Fallback direto caso o controller do SW ainda esteja a aquecer
       const registration = await navigator.serviceWorker?.ready;
       if (registration) {
-        registration.showNotification(`Hora do Remédio: ${medicationName} 💊`, {
-          body: `${profileName} precisa tomar ${dosage}. Toque para abrir o Nura.`,
+        // Casting para 'any' para evitar conflitos estritos do NotificationOptions com actions do SW
+        const options: any = {
+          body: `${profileName} precisa tomar ${dosage}. Toque para abrir ou escolha uma ação rápida.`,
           icon: '/icon-192.png',
           badge: '/icon-192.png',
           tag: `medication-test-${Date.now()}`,
-          data: { medicationName, profileName }
-        });
+          data: { medicationId, medicationName, dosage, profileName },
+          actions: [
+            { action: 'confirm-dose', title: '✅ Confirmar' },
+            { action: 'snooze-dose', title: '⏰ Adiar 15 min' }
+          ]
+        };
+
+        registration.showNotification(`Hora do Remédio: ${medicationName} 💊`, options);
       }
     }
   }
