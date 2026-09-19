@@ -1,13 +1,19 @@
 const CACHE_NAME = "nura-v1";
 
-// Assets fundamentais para o Shell da aplicação
+// Detecta automaticamente se está em ambiente de subpasta (GitHub Pages) ou raiz (Localhost)
+const isGithubPages = self.location.pathname.startsWith("/nura");
+const prefix = isGithubPages ? "/nura" : "";
+
 const STATIC_ASSETS = [
-  "/",
-  "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png",
-  "/favicon.ico"
+  `${prefix}/`,
+  `${prefix}/manifest.json`,
+  `${prefix}/android-chrome-192x192.png`,
+  `${prefix}/android-chrome-512x512.png`,
+  `${prefix}/apple-touch-icon.png`,
+  `${prefix}/favicon.ico`
 ];
+
+const iconPath = `${prefix}/android-chrome-192x192.png`;
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -113,8 +119,8 @@ self.addEventListener('message', (event) => {
     const title = `Hora do Remédio: ${medicationName} 💊`;
     const options = {
       body: `${profileName} precisa tomar ${dosage}.`,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: iconPath,
+      badge: iconPath,
       tag: `medication-${medicationId}-${Date.now()}`,
       requireInteraction: true,
       data: { medicationId, medicationName, dosage, profileId, profileName },
@@ -208,7 +214,7 @@ self.addEventListener('notificationclick', (event) => {
           // Exibe feedback visual de sucesso
           await self.registration.showNotification("Dose Confirmada! ✅", {
             body: `A toma de ${data.medicationName || 'medicamento'} foi registrada e o estoque atualizado.`,
-            icon: '/icon-192.png',
+            icon: iconPath,
             tag: 'confirmation-success'
           });
         } catch (err) {
@@ -226,7 +232,7 @@ self.addEventListener('notificationclick', (event) => {
         setTimeout(async () => {
           await self.registration.showNotification(`Lembrete Adiado: ${data.medicationName || 'Remédio'} ⏰`, {
             body: `${data.profileName || 'Paciente'} precisa tomar ${data.dosage || ''} (adiado).`,
-            icon: '/icon-192.png',
+            icon: iconPath,
             tag: `snooze-${data.medicationId}-${Date.now()}`,
             requireInteraction: true,
             data,
@@ -250,7 +256,7 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
       if (clients.openWindow) {
-        return clients.openWindow('/');
+        return clients.openWindow(`${prefix}/`);
       }
     })
   );
