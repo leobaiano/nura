@@ -5,7 +5,11 @@ import { useEffect } from "react";
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").then((registration) => {
+      // Detecta dinamicamente se estamos em subpasta (GitHub Pages) ou raiz (Localhost)
+      const isSubfolder = window.location.pathname.startsWith("/nura");
+      const swUrl = isSubfolder ? "/nura/sw.js" : "/sw.js";
+
+      navigator.serviceWorker.register(swUrl).then((registration) => {
         // Verifica se já há um worker em espera ao carregar
         if (registration.waiting) {
           triggerUpdate(registration.waiting);
@@ -25,6 +29,8 @@ export function ServiceWorkerRegister() {
             };
           }
         };
+      }).catch((error) => {
+        console.error("Erro ao registrar o Service Worker:", error);
       });
 
       // Garante que se o controlador mudar, a página recarrega com a versão nova

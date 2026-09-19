@@ -1,8 +1,9 @@
-const CACHE_NAME = "nura-v1";
+const CACHE_NAME = "nura-v2";
 
-// Detecta automaticamente se está em ambiente de subpasta (GitHub Pages) ou raiz (Localhost)
-const isGithubPages = self.location.pathname.startsWith("/nura");
-const prefix = isGithubPages ? "/nura" : "";
+// Descobre o prefixo dinamicamente de forma segura (ex: "/nura" ou "")
+const pathSegments = self.location.pathname.split("/");
+const isSubfolder = pathSegments.length > 2 && pathSegments[1] !== "";
+const prefix = isSubfolder ? `/${pathSegments[1]}` : "";
 
 const STATIC_ASSETS = [
   `${prefix}/`,
@@ -93,19 +94,11 @@ self.addEventListener("fetch", (event) => {
 
 function openNuraDB() {
   return new Promise((resolve, reject) => {
-    // Sem informar a versão, o IndexedDB abre a versão
-    // atualmente existente no navegador.
     const request = indexedDB.open("NuraDB");
-
     request.onerror = () => reject(request.error);
-
     request.onsuccess = () => {
       const db = request.result;
-
-      db.onversionchange = () => {
-        db.close();
-      };
-
+      db.onversionchange = () => { db.close(); };
       resolve(db);
     };
   });
@@ -114,7 +107,7 @@ function openNuraDB() {
 // Escuta por mensagens vindas da aplicação principal
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SHOW_MEDICATION_ALERT') {
-    const { medicationId, medicationName, dosage, profileId, profileName } = event.data;
+    const { medicationId, medicationName, dosage, profileName } = event.data;
 
     const title = `Hora do Remédio: ${medicationName} 💊`;
     const options = {
@@ -123,7 +116,7 @@ self.addEventListener('message', (event) => {
       badge: iconPath,
       tag: `medication-${medicationId}-${Date.now()}`,
       requireInteraction: true,
-      data: { medicationId, medicationName, dosage, profileId, profileName },
+      data: { medicationId, medicationName, dosage, profileName },
       actions: [
         { action: 'confirm-dose', title: '✅ Confirmar' },
         { action: 'snooze-dose', title: '⏰ Adiar 15 min' }
@@ -144,43 +137,19 @@ self.addEventListener('notificationclick', (event) => {
 
   notification.close();
 
-  // Ação [Confirmar]: Abate estoque e grava em doseLogs no IndexedDB em background
   if (action === 'confirm-dose') {
     event.waitUntil(
       (async () => {
         try {
           const db = await openNuraDB();
           
-          // 1. Atualizar estoque na tabela 'stocks'
           await new Promise((resolve, reject) => {
             const transaction = db.transaction(["stocks"], "readwrite");
             const store = transaction.objectStore("stocks");
-            
             const getRequest = store.get(data.medicationId);
 
             getRequest.onsuccess = () => {
               let stockItem = getRequest.result;
-              
-              if (!stockItem) {
-                try {
-                  const index = store.index("medicationId");
-                  const idxRequest = index.get(data.medicationId);
-                  idxRequest.onsuccess = () => {
-                    const found = idxRequest.result;
-                    if (found) {
-                      found.currentQuantity = Math.max(0, found.currentQuantity - 1);
-                      found.updatedAt = new Date();
-                      store.put(found);
-                    }
-                    resolve(true);
-                  };
-                  idxRequest.onerror = () => resolve(true);
-                  return;
-                } catch (e) {
-                  // Sem índice secundário, prossegue
-                }
-              }
-
               if (stockItem) {
                 stockItem.currentQuantity = Math.max(0, stockItem.currentQuantity - 1);
                 stockItem.updatedAt = new Date();
@@ -191,7 +160,6 @@ self.addEventListener('notificationclick', (event) => {
             getRequest.onerror = () => reject(getRequest.error);
           });
 
-          // 2. Registar tomada na tabela 'doseLogs'
           await new Promise((resolve, reject) => {
             const transaction = db.transaction(["doseLogs"], "readwrite");
             const store = transaction.objectStore("doseLogs");
@@ -211,7 +179,6 @@ self.addEventListener('notificationclick', (event) => {
             addRequest.onerror = () => reject(addRequest.error);
           });
 
-          // Exibe feedback visual de sucesso
           await self.registration.showNotification("Dose Confirmada! ✅", {
             body: `A toma de ${data.medicationName || 'medicamento'} foi registrada e o estoque atualizado.`,
             icon: iconPath,
@@ -225,7 +192,6 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  // Ação [Adiar 15 min]: Reprograma o alarme
   if (action === 'snooze-dose') {
     event.waitUntil(
       (async () => {
@@ -241,13 +207,12 @@ self.addEventListener('notificationclick', (event) => {
               { action: 'snooze-dose', title: '⏰ Adiar 15 min' }
             ]
           });
-        }, 15 * 60 * 1000); // 15 minutos
+        }, 15 * 60 * 1000);
       })()
     );
     return;
   }
 
-  // Comportamento padrão ao clicar no corpo da notificação (abre o app)
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
