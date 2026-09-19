@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nura - Gestão de Medicamentos 💊
 
-## Getting Started
+> Um aplicativo web moderno, privado e *offline-first* focado em auxiliar no controlo de medicamentos, gestão de estoque e alertas para cuidadores e pacientes.
 
-First, run the development server:
+[![Deploy Next.js PWA to GitHub Pages](https://github.com/leobaiano/nura/actions/workflows/deploy.yml/badge.svg)](https://github.com/leobaiano/nura/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg)](https://opensource.org/licenses/MIT)
+[![PWA Ready](https://img.shields.io/badge/PWA-Ready-0D9488.svg)](https://web.dev/progressive-web-apps/)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Sobre o Projeto
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+O **Nura** nasceu com o objetivo de descomplicar a rotina de administração de medicamentos. Desenvolvido com tecnologias web modernas, ele funciona de forma totalmente descentralizada e privada (com dados salvos localmente via IndexedDB), permitindo que cuidadores e familiares gerenciem horários, estoques e recebam notificações em segundo plano sem depender de servidores centralizados de rastreamento.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## ✨ Principais Funcionalidades
 
-To learn more about Next.js, take a look at the following resources:
+* 📱 **Progressive Web App (PWA):** Instalável tanto em dispositivos móveis (Android/iOS) quanto em desktops, funcionando como um aplicativo nativo.
+* 🔔 **Sistema de Alertas Inteligentes:** Notificações locais agendadas para os horários de toma, com suporte a *Quick Actions* (ações rápidas direto na notificação para confirmar a dose ou adiar o alarme).
+* 📦 **Controle de Estoque:** Monitoramento automático da quantidade de comprimidos/frascos, com abatimento automático ao confirmar as tomas.
+* 🔒 **Privacidade em Primeiro Lugar (*Offline-First*):** Todos os dados pertencem exclusivamente ao usuário e ficam armazenados de forma segura no próprio dispositivo utilizando IndexedDB.
+* 👥 **Gestão de Perfis:** Acompanhamento personalizado para diferentes pacientes ou familiares.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🛠️ Tecnologias Utilizadas
 
-## Deploy on Vercel
+Este projeto foi construído utilizando uma stack moderna focada em performance e DX (Developer Experience):
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+* **[Next.js](https://nextjs.org/)** (App Router & Exportação Estática)
+* **[TypeScript](https://www.typescriptlang.org/)**
+* **[Tailwind CSS](https://tailwindcss.com/)** para estilização
+* **[IndexedDB](https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API)** para persistência local
+* **Service Workers & Web Push API** para recursos PWA e notificações em background
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 📦 Como Rodar o Projeto Localmente
+
+Siga os passos abaixo para configurar o ambiente de desenvolvimento na sua máquina:
+
+1. **Clone o repositório:** `git clone [https://github.com/leobaiano/nura.git](https://github.com/leobaiano/nura.git) && cd nura`
+2. **Instale as dependências:** `npm install`
+3. **Inicie o servidor de desenvolvimento:** `npm run dev`
+4. **Acesse: http://localhost:3000
+
+## 🤝 Como Contribuir
+Adoramos contribuições da comunidade! Se você deseja ajudar a tornar o Nura ainda melhor, siga os passos abaixo para enviar a sua contribuição:
+
+1. Faça um fork do repositório
+2. Crie sua branch com base na *main*: `git checkout -b feature/minha-nova-feature`
+3. Commit suas alterações: `git commit -m "feat: adiciona nova funcionalidade X"`
+4. Envie suas branch para o repositório remoto: `git push origin feature/minha-nova-feature`
+5. Abra um Pull Request explicando detalhadamente o seu propósito e mudanças.
+
+Por favor, certifique-se de que o seu código segue os padrões de linting e passa nos testes de build (npm run build) antes de submeter o PR.
+
