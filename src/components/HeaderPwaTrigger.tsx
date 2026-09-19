@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Smartphone, Check, HelpCircle } from "lucide-react";
+import { Bell, Smartphone, CheckCircle2, AlertCircle } from "lucide-react";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
+import { Button } from "@/components/ui/button";
 
 export function HeaderPwaTrigger() {
   const { isInstallable, isInstalled, installPwa } = usePwaInstall();
   const [hasPermission, setHasPermission] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -22,29 +22,44 @@ export function HeaderPwaTrigger() {
     setHasPermission(res === "granted");
   };
 
-  const allGood = isInstalled && hasPermission;
+  // Cálculo de pendências
+  const missingNotifications = !hasPermission;
+  const missingInstall = !isInstalled;
+  
+  let pendingCount = 0;
+  if (missingNotifications) pendingCount++;
+  if (missingInstall) pendingCount++;
+
+  const allGood = pendingCount === 0;
+
+  // Determina a cor da badge de alerta no botão principal
+  // 2 pendências (ou só notificação faltando) = Vermelho. Só instalação faltando = Amarelo.
+  let badgeColor = "bg-rose-500 text-white";
+  if (!missingNotifications && missingInstall) {
+    badgeColor = "bg-amber-500 text-white";
+  }
 
   return (
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
+        className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
           allGood
             ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
             : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 animate-pulse"
         }`}
         title="Status do PWA e Notificações"
       >
-        {allGood ? (
-          <>
-            <Check className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="hidden sm:inline">PWA Ativo</span>
-          </>
-        ) : (
-          <>
-            <Bell className="w-3.5 h-3.5 text-amber-600" />
-            <span className="hidden sm:inline">Ativar Alertas</span>
-          </>
+        <AlertCircle className="w-4 h-4 text-amber-600" />
+        <span className="hidden sm:inline font-semibold">
+          {allGood ? "Tudo Ativo" : "Configurar Alertas"}
+        </span>
+
+        {/* Badge de contador inteligente */}
+        {!allGood && (
+          <span className={`absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold shadow-md ${badgeColor}`}>
+            {pendingCount}
+          </span>
         )}
       </button>
 
@@ -60,53 +75,37 @@ export function HeaderPwaTrigger() {
           <div className="space-y-3 text-xs">
             {/* Notificações */}
             <div className="flex items-center justify-between py-1">
-              <span className="text-nura-slate-600 flex items-center gap-1.5">
+              <span className="text-nura-slate-600 flex items-center gap-1.5 font-medium">
                 <Bell className="w-4 h-4 text-nura-teal-600" /> Notificações
               </span>
               {hasPermission ? (
-                <span className="text-emerald-600 font-semibold flex items-center gap-1">Permitidas <Check className="w-3 h-3" /></span>
+                <span className="text-emerald-600 font-semibold flex items-center gap-1">Permitidas <CheckCircle2 className="w-3.5 h-3.5" /></span>
               ) : (
-                <button
+                <Button
                   onClick={handleRequestNotification}
-                  className="text-nura-teal-600 font-semibold underline cursor-pointer bg-nura-teal-50 px-2 py-1 rounded-lg"
+                  size="sm"
+                  className="h-7 text-xs bg-nura-teal-600 hover:bg-nura-teal-700 text-white font-semibold cursor-pointer rounded-lg"
                 >
-                  Permitir agora
-                </button>
+                  Ativar
+                </Button>
               )}
             </div>
 
-            {/* PWA Instalado */}
-            <div className="flex flex-col gap-2 py-1 border-t border-nura-slate-100 pt-2">
-              <div className="flex items-center justify-between">
-                <span className="text-nura-slate-600 flex items-center gap-1.5">
-                  <Smartphone className="w-4 h-4 text-nura-teal-600" /> PWA Instalado
-                </span>
-                {isInstalled ? (
-                  <span className="text-emerald-600 font-semibold flex items-center gap-1">Sim <Check className="w-3 h-3" /></span>
-                ) : isInstallable ? (
-                  <button
-                    onClick={installPwa}
-                    className="text-nura-teal-600 font-semibold underline cursor-pointer bg-nura-teal-50 px-2 py-1 rounded-lg"
-                  >
-                    Instalar app
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setShowHelp(!showHelp)}
-                    className="text-nura-teal-700 font-semibold underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <HelpCircle className="w-3.5 h-3.5" /> Como instalar?
-                  </button>
-                )}
-              </div>
-
-              {/* Caixa de Ajuda Expansível */}
-              {!isInstalled && !isInstallable && showHelp && (
-                <div className="bg-nura-slate-50 p-2.5 rounded-xl text-[11px] text-nura-slate-600 space-y-1 border border-nura-slate-200">
-                  <p className="font-semibold text-nura-slate-800">No telemóvel (Android / Chrome):</p>
-                  <p>1. Toque no menu de três pontos (<strong className="text-nura-teal-700">⋮</strong>) no canto superior direito.</p>
-                  <p>2. Selecione <strong>&quot;Adicionar à tela inicial&quot;</strong> ou <strong>&quot;Instalar aplicativo&quot;</strong>.</p>
-                </div>
+            {/* Instalação */}
+            <div className="flex items-center justify-between py-1 border-t border-nura-slate-100 pt-2">
+              <span className="text-nura-slate-600 flex items-center gap-1.5 font-medium">
+                <Smartphone className="w-4 h-4 text-nura-teal-600" /> Instalação
+              </span>
+              {isInstalled ? (
+                <span className="text-emerald-600 font-semibold flex items-center gap-1">Instalado <CheckCircle2 className="w-3.5 h-3.5" /></span>
+              ) : (
+                <Button
+                  onClick={installPwa}
+                  size="sm"
+                  className="h-7 text-xs bg-nura-teal-600 hover:bg-nura-teal-700 text-white font-semibold cursor-pointer rounded-lg"
+                >
+                  Instalar
+                </Button>
               )}
             </div>
           </div>

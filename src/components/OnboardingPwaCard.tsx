@@ -22,8 +22,6 @@ export function OnboardingPwaCard() {
     setNotificationStatus(permission);
   };
 
-  if (isInstalled && notificationStatus === "granted") return null;
-
   return (
     <div className="bg-nura-teal-50 border border-nura-teal-200 rounded-2xl p-4 space-y-3 mb-4 text-left">
       <div className="space-y-1">
@@ -85,9 +83,9 @@ export function OnboardingPwaCard() {
           {/* Instrução amigável caso não esteja no modo instalável direto */}
           {!isInstalled && !isInstallable && showHelp && (
             <div className="bg-nura-slate-50 p-2.5 rounded-lg text-[11px] text-nura-slate-600 space-y-1 border border-nura-slate-200">
-              <p className="font-semibold text-nura-slate-800">No telemóvel (Android / Chrome):</p>
-              <p>1. Toque no menu de três pontos (<strong className="text-nura-teal-700">⋮</strong>) no canto superior direito do navegador.</p>
-              <p>2. Selecione <strong>&quot;Adicionar à tela inicial&quot;</strong> ou <strong>&quot;Instalar aplicativo&quot;</strong>.</p>
+              <p className="font-semibold text-nura-slate-800">No navegador / dispositivo:</p>
+              <p>1. Procure o ícone de instalação (<strong className="text-nura-teal-700">monitor com seta para baixo</strong>) na barra de endereços do navegador.</p>
+              <p>2. Em alternativa, toque no menu de três pontos (<strong className="text-nura-teal-700">⋮</strong>) e selecione <strong>&quot;Instalar aplicativo&quot;</strong>.</p>
             </div>
           )}
         </div>
